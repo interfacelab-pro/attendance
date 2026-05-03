@@ -13,6 +13,8 @@ function PrivateRoute({ children, adminOnly = false }) {
   const { currentUser, userRole } = useAuth();
   if (!currentUser) return <Navigate to="/login" />;
   if (adminOnly && userRole !== "admin") return <Navigate to="/dashboard" />;
+  // If admin tries to access intern dashboard, redirect to admin panel
+  if (!adminOnly && userRole === "admin") return <Navigate to="/admin" />;
   return children;
 }
 
