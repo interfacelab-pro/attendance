@@ -104,7 +104,6 @@ export default function QRPage() {
       {/* Print button */}
       <div className="no-print flex gap-2 mt-3">
         <button className="btn btn-primary" onClick={handlePrint}>🖨 Print QR Code</button>
-        <a href="https://interfacelab-pro.github.io/attendance/#/dashboard" className="btn btn-secondary">← Back to Dashboard</a>
       </div>
 
       <p className="no-print muted text-center mt-2" style={{ fontSize: "0.8rem", maxWidth: 340 }}>
