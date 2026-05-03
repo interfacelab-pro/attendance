@@ -6,6 +6,9 @@ export default function QRPage() {
   const printRef = useRef();
   const appUrl = "https://interfacelab-pro.github.io/attendance/#/dashboard";
 
+  // Ensure QR code value is clean
+  const qrValue = appUrl;
+
   function handlePrint() {
     window.print();
   }
@@ -58,7 +61,7 @@ export default function QRPage() {
           margin: "1rem 0",
         }}>
           <QRCodeSVG
-            value={appUrl + "/dashboard"}
+            value={qrValue}
             size={200}
             bgColor="#ffffff"
             fgColor="#0a0a0f"
@@ -89,7 +92,7 @@ export default function QRPage() {
           color: "var(--accent2)",
           wordBreak: "break-all",
         }}>
-          {appUrl}/dashboard
+          {appUrl}
         </div>
 
         {/* Footer note */}
