@@ -3,12 +3,15 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   collection, addDoc, query, where, getDocs,
-  doc, updateDoc, orderBy, limit, getDoc
+  doc, updateDoc, orderBy, limit
 } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useAuth } from "../context/AuthContext";
 import { formatTime, formatDate, formatDuration, calcHours } from "../utils/attendanceUtils";
-import { format, differenceInMinutes, parseISO } from "date-fns";
+import { format, differenceInMinutes, parseISO, subDays } from "date-fns";
+
+const DEFAULT_AUTO_CHECKOUT_MINUTES = 4.5 * 60; // 4.5 hours
+const MIN_ENTRIES_FOR_AVERAGE = 10;
 
 export default function Dashboard() {
   const { currentUser, logout } = useAuth();
@@ -25,10 +28,67 @@ export default function Dashboard() {
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
+  // Calculate average session duration from completed records
+  async function getAverageMinutes(userId) {
+    const q = query(
+      collection(db, "attendance"),
+      where("userId", "==", userId),
+      where("autoCheckedOut", "==", false),
+      orderBy("date", "desc"),
+      limit(30)
+    );
+    const snap = await getDocs(q);
+    const completed = snap.docs
+      .map(d => d.data())
+      .filter(r => r.clockIn && r.clockOut && r.totalMinutes > 0);
+
+    if (completed.length >= MIN_ENTRIES_FOR_AVERAGE) {
+      const avg = completed.reduce((sum, r) => sum + r.totalMinutes, 0) / completed.length;
+      return Math.round(avg);
+    }
+    return DEFAULT_AUTO_CHECKOUT_MINUTES;
+  }
+
+  // Auto-checkout any record that was left open from a previous day
+  async function autoCheckoutIfNeeded(userId) {
+    try {
+      const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd");
+      // Find any open records from before today
+      const q = query(
+        collection(db, "attendance"),
+        where("userId", "==", userId),
+        where("clockOut", "==", null)
+      );
+      const snap = await getDocs(q);
+      const openRecords = snap.docs.filter(d => d.data().date !== todayStr);
+
+      if (openRecords.length === 0) return;
+
+      const avgMins = await getAverageMinutes(userId);
+
+      for (const record of openRecords) {
+        const data = record.data();
+        const clockInTime = parseISO(data.clockIn);
+        const autoClockOut = new Date(clockInTime.getTime() + avgMins * 60 * 1000);
+        await updateDoc(doc(db, "attendance", record.id), {
+          clockOut: autoClockOut.toISOString(),
+          totalMinutes: avgMins,
+          autoCheckedOut: true,
+          autoCheckoutNote: `Auto checked out after ${Math.round(avgMins / 60 * 10) / 10}h (average session)`,
+        });
+      }
+    } catch (err) {
+      console.error("Auto-checkout error:", err);
+    }
+  }
+
   const fetchData = useCallback(async () => {
     if (!currentUser) return;
     setLoading(true);
     try {
+      // Run auto-checkout for any forgotten open sessions first
+      await autoCheckoutIfNeeded(currentUser.uid);
+
       // Today's record
       const todayQ = query(
         collection(db, "attendance"),
@@ -43,24 +103,25 @@ export default function Dashboard() {
         setTodayRecord(null);
       }
 
-      // Recent 7 records
+      // Recent 14 records
       const recentQ = query(
         collection(db, "attendance"),
         where("userId", "==", currentUser.uid),
         orderBy("date", "desc"),
-        limit(7)
+        limit(14)
       );
       const recentSnap = await getDocs(recentQ);
       const records = recentSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       setRecentRecords(records);
 
-      // This week total
+      // Total hours from recent records
       const weekTotal = records
         .filter(r => r.clockOut)
         .reduce((sum, r) => sum + calcHours(r.clockIn, r.clockOut), 0);
       setTotalThisWeek(Math.round(weekTotal * 100) / 100);
     } catch (err) {
-      console.error(err);
+      console.error("Fetch error:", err);
+      setMsg({ type: "error", text: "Could not load records. Check your Firestore rules." });
     }
     setLoading(false);
   }, [currentUser, todayStr]);
@@ -91,6 +152,8 @@ export default function Dashboard() {
         clockOut: null,
         locationType,
         totalMinutes: null,
+        autoCheckedOut: false,
+        autoCheckoutNote: null,
         createdAt: new Date().toISOString(),
       });
       setTodayRecord({ id: ref.id, clockIn: new Date().toISOString(), clockOut: null, locationType });
@@ -282,7 +345,7 @@ export default function Dashboard() {
                       <td>{r.date}</td>
                       <td className="accent">{formatTime(r.clockIn)}</td>
                       <td className="accent2">{r.clockOut ? formatTime(r.clockOut) : <span className="warn pulse">Active</span>}</td>
-                      <td>{r.totalMinutes ? formatDuration(r.totalMinutes) : "—"}</td>
+                      <td>{r.totalMinutes ? formatDuration(r.totalMinutes) : "—"}{r.autoCheckedOut && <span className="badge badge-missing" style={{marginLeft:6,fontSize:"0.65rem"}}>Auto</span>}</td>
                       <td>
                         <span className={`badge ${r.locationType === "wfh" ? "badge-wfh" : "badge-office"}`}>
                           {r.locationType === "wfh" ? "🏠 WFH" : "🏢 Office"}
