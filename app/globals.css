@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0b1120;
+  --foreground: #f1f5f9;
+  --muted: #94a3b8;
+  --accent: #d4a017;
+  --accent-hover: #e6b422;
+  --navy: #0f172a;
+  --navy-light: #1e293b;
+  --navy-lighter: #334155;
+  --card-bg: #111827;
+  --card-border: #1e293b;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --signal-buy: #22c55e;
+  --signal-weak-buy: #86efac;
+  --signal-hold: #3b82f6;
+  --signal-weak-hold: #60a5fa;
+  --signal-sell: #ef4444;
+  --signal-avoid: #6b7280;
+  --signal-neutral: #9ca3af;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-navy: var(--navy);
+  --color-navy-light: var(--navy-light);
+  --color-navy-lighter: var(--navy-lighter);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--navy);
+}
+
+@keyframes ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-ticker {
+  animation: ticker-scroll 30s linear infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
